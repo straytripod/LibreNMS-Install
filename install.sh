@@ -124,5 +124,5 @@ setfacl -d -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstra
 setfacl -R -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
 ######
 echo "###############################################################################################"
-echo "Naviagte to http://librenms.example.com/install.php in you web browser to finish the installation."
+echo "Naviagte to http://[IP or Hostname]/install.php in you web browser to finish the installation."
 echo "###############################################################################################"
