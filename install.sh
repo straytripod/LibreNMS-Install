@@ -55,8 +55,8 @@ echo "######### MySQL DB:librenms Password:librenms #############"
 echo "###########################################################"
 mysql -uroot -e "CREATE DATABASE librenms CHARACTER SET utf8 COLLATE utf8_unicode_ci; CREATE USER 'librenms'@'localhost' IDENTIFIED BY 'librenms'; GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost'; FLUSH PRIVILEGES;"
 ##### Within the [mysqld] section of the config file please add: ####
-sed -i '/mysqld/ a lower_case_table_names=0' /etc/mysql/mariadb.conf.d/50-server.cnf
-sed -i '/mysqld/ a innodb_file_per_table=1' /etc/mysql/mariadb.conf.d/50-server.cnf
+sed -i '/mysqld]/ a lower_case_table_names=0' /etc/mysql/mariadb.conf.d/50-server.cnf
+sed -i '/mysqld]/ a innodb_file_per_table=1' /etc/mysql/mariadb.conf.d/50-server.cnf
 innodb_file_per_table=1
 lower_case_table_names=0
 ##### Restart mysql
@@ -65,8 +65,8 @@ systemctl restart mysql
 #### Change time zone to America/Denver in the following
 # /etc/php/7.2/fpm/php.ini
 # /etc/php/7.2/cli/php.ini
-sed -i '/date.timezone/ a date.timezone = America/Denver' /etc/php/7.2/fpm/php.ini
-sed -i '/date.timezone/ a date.timezone = America/Denver' /etc/php/7.2/cli/php.ini
+sed -i '/;date.timezone =/ a date.timezone = America/Denver' /etc/php/7.2/fpm/php.ini
+sed -i '/;date.timezone =/ a date.timezone = America/Denver' /etc/php/7.2/cli/php.ini
 ### restart PHP-fpm
 systemctl restart php7.2-fpm
 ####  Config NGINX
