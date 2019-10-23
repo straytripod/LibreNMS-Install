@@ -62,7 +62,7 @@ sed -i '/mysqld]/ a innodb_file_per_table=1' /etc/mysql/mariadb.conf.d/50-server
 ##### Restart mysql
 systemctl restart mysql
 # Configure and Start PHP-FPM
-#### Change time zone to America/Denver in the following
+#### Change time zone to America/Denver in the following:
 # /etc/php/7.2/fpm/php.ini
 # /etc/php/7.2/cli/php.ini
 echo "timezone is set to America/Denver in /etc/php/7.2/fpm/php.ini and /etc/php/7.2/cli/php.ini change as needed."
@@ -77,10 +77,10 @@ echo "##########################################################################
 echo "We need to change the sever name to the current IP unless the name is resolvable /etc/nginx/conf.d/librenms.conf"
 echo "################################################################################"
 echo "Enter Hostname [x.x.x.x or serv.examp.com]: "
-read ANS
+read HOSTNAME
 echo "server {"> /etc/nginx/conf.d/librenms.conf 
 echo " listen      80;" >>/etc/nginx/conf.d/librenms.conf
-echo " server_name $ANS;" >>/etc/nginx/conf.d/librenms.conf
+echo " server_name $HOSTNAME;" >>/etc/nginx/conf.d/librenms.conf
 echo " root        /opt/librenms/html;" >>/etc/nginx/conf.d/librenms.conf
 echo " index       index.php;" >>/etc/nginx/conf.d/librenms.conf
 echo " " >>/etc/nginx/conf.d/librenms.conf
@@ -126,5 +126,5 @@ setfacl -d -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstra
 setfacl -R -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
 ######
 echo "###############################################################################################"
-echo "Naviagte to http://[IP or Hostname]/install.php in you web browser to finish the installation."
+echo "Naviagte to http://$HOSTNAME/install.php in you web browser to finish the installation."
 echo "###############################################################################################"
