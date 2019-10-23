@@ -65,6 +65,8 @@ systemctl restart mysql
 #### Change time zone to America/Denver in the following
 # /etc/php/7.2/fpm/php.ini
 # /etc/php/7.2/cli/php.ini
+echo "timezone is set to America/Denver in /etc/php/7.2/fpm/php.ini and /etc/php/7.2/cli/php.ini change as needed."
+echo "################################################################################"
 sed -i '/;date.timezone =/ a date.timezone = America/Denver' /etc/php/7.2/fpm/php.ini
 sed -i '/;date.timezone =/ a date.timezone = America/Denver' /etc/php/7.2/cli/php.ini
 ### restart PHP-fpm
