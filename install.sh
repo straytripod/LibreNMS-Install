@@ -55,10 +55,10 @@ echo "######### MySQL DB:librenms Password:librenms #############"
 echo "###########################################################"
 mysql -uroot -e "CREATE DATABASE librenms CHARACTER SET utf8 COLLATE utf8_unicode_ci; CREATE USER 'librenms'@'localhost' IDENTIFIED BY 'librenms'; GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost'; FLUSH PRIVILEGES;"
 ##### Within the [mysqld] section of the config file please add: ####
+## innodb_file_per_table=1
+## lower_case_table_names=0
 sed -i '/mysqld]/ a lower_case_table_names=0' /etc/mysql/mariadb.conf.d/50-server.cnf
 sed -i '/mysqld]/ a innodb_file_per_table=1' /etc/mysql/mariadb.conf.d/50-server.cnf
-innodb_file_per_table=1
-lower_case_table_names=0
 ##### Restart mysql
 systemctl restart mysql
 # Configure and Start PHP-FPM
