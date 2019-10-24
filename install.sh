@@ -3,45 +3,50 @@
 #!/bin/bash
 echo "This will install LibreNMS. Developed on Ubuntu 18.04 lts"
 echo "###########################################################"
-# Installing Required Packages
-echo "Updating the repo cache and installing need repos"
-echo "###########################################################"
-apt install software-properties-common
-add-apt-repository universe
+echo "Updating the repo cache and installing needed repos"
 echo "###########################################################"
 apt update
-echo "Upgrading packages in the system"
+# Installing Required Packages
+apt install software-properties-common
+add-apt-repository universe
+echo "Upgrading installed packages in the system"
 echo "###########################################################"
 apt upgrade -y
 echo "Installing dependancies"
 echo "###########################################################"
 apt install -y curl composer fping git graphviz imagemagick mariadb-client mariadb-server mtr-tiny nginx-full nmap php7.2-cli php7.2-curl php7.2-fpm php7.2-gd php7.2-json php7.2-mbstring php7.2-mysql php7.2-snmp php7.2-xml php7.2-zip python-memcache python-mysqldb rrdtool snmp snmpd whois unzip
-# Add librenms user
-echo "Creating libreNMS user account"
-echo "###########################################################"
-useradd librenms -d /opt/librenms -M -r
-# Add librenms user to www-data group
-echo "Adding libreNMS user to the www-data group"
-echo "###########################################################"
-usermod -a -G librenms www-data
 # Download LibreNMS
 echo "Downloading libreNMS to /opt"
 echo "###########################################################"
 cd /opt
 git clone https://github.com/librenms/librenms.git
+# Add librenms user
+echo "Creating libreNMS user account, set the home directory, don't create it."
+echo "###########################################################"
+# add user link home directory, do not create home driectory, system user
+useradd librenms -d /opt/librenms -M -r
+# Add librenms user to www-data group
+echo "Adding libreNMS user to the www-data group"
+echo "###########################################################"
+usermod -a -G librenms www-data
 # Set permissions and access controls
 echo "Setting permissions and file access controls"
 echo "###########################################################"
+# set owner:group recursively on directory
 chown -R librenms:librenms /opt/librenms
+# mod permission on directory O=All,G=All, Oth=none
 chmod 770 /opt/librenms
+# mod default ACL
 setfacl -d -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
+# mod ACL recursively
 setfacl -R -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
 ### Install PHP dependencies
 echo running PHP installer script as librenms user
 echo "###########################################################"
 # su - librenms
 # run php dependencies installer
-sudo -u librenms bash -c '/opt/librenms/scripts/composer_wrapper.php install --no-dev'
+# sudo -u librenms bash -c '/opt/librenms/scripts/composer_wrapper.php install --no-dev'
+su librenms bash -c '/opt/librenms/scripts/composer_wrapper.php install --no-dev'
 ###Log out of user
 ##exit
 # Configure MySQL (mariadb)
