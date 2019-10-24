@@ -42,7 +42,7 @@ git clone https://github.com/librenms/librenms.git
 # Add librenms user
 echo "Creating libreNMS user account, set the home directory, don't create it."
 echo "###########################################################"
-# add user link home directory, do not create home driectory, system user
+# add user link home directory, do not create home directory, system user
 useradd librenms -d /opt/librenms -M -r
 # Add librenms user to www-data group
 echo "Adding libreNMS user to the www-data group"
