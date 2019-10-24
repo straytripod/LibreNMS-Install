@@ -98,28 +98,28 @@ echo "We need to change the sever name to the current IP unless the name is reso
 echo "################################################################################"
 echo "Enter Hostname [x.x.x.x or serv.examp.com]: "
 read HOSTNAME
-echo "server {"> /etc/nginx/conf.d/librenms.conf 
+echo "server {"> /etc/nginx/conf.d/librenms.conf
 echo " listen      80;" >>/etc/nginx/conf.d/librenms.conf
 echo " server_name $HOSTNAME;" >>/etc/nginx/conf.d/librenms.conf
-echo " root        /opt/librenms/html;" >>/etc/nginx/conf.d/librenms.conf
+echo ' root        /opt/librenms/html;' >>/etc/nginx/conf.d/librenms.conf
 echo " index       index.php;" >>/etc/nginx/conf.d/librenms.conf
 echo " " >>/etc/nginx/conf.d/librenms.conf
 echo " charset utf-8;" >>/etc/nginx/conf.d/librenms.conf
 echo " gzip on;" >>/etc/nginx/conf.d/librenms.conf
 echo " gzip_types text/css application/javascript text/javascript application/x-javascript image/svg+xml \
 text/plain text/xsd text/xsl text/xml image/x-icon;" >>/etc/nginx/conf.d/librenms.conf
-echo " location / {" >>/etc/nginx/conf.d/librenms.conf
-echo "  try_files $uri $uri/ /index.php?$query_string;" >>/etc/nginx/conf.d/librenms.conf
+echo ' location / {' >>/etc/nginx/conf.d/librenms.conf
+echo '  try_files $uri $uri/ /index.php?$query_string;' >>/etc/nginx/conf.d/librenms.conf
 echo " }" >>/etc/nginx/conf.d/librenms.conf
-echo " location /api/v0 {" >>/etc/nginx/conf.d/librenms.conf
-echo "  try_files $uri $uri/ /api_v0.php?$query_string;" >>/etc/nginx/conf.d/librenms.conf
+echo ' location /api/v0 {' >>/etc/nginx/conf.d/librenms.conf
+echo '  try_files $uri $uri/ /api_v0.php?$query_string;' >>/etc/nginx/conf.d/librenms.conf
 echo " }" >>/etc/nginx/conf.d/librenms.conf
-echo " location ~ \.php {" >>/etc/nginx/conf.d/librenms.conf
+echo ' location ~ \.php {' >>/etc/nginx/conf.d/librenms.conf
 echo "  include fastcgi.conf;" >>/etc/nginx/conf.d/librenms.conf
-echo "  fastcgi_split_path_info ^(.+\.php)(/.+)$;" >>/etc/nginx/conf.d/librenms.conf
-echo "  fastcgi_pass unix:/var/run/php/php7.2-fpm.sock;" >>/etc/nginx/conf.d/librenms.conf
+echo '  fastcgi_split_path_info ^(.+\.php)(/.+)$;' >>/etc/nginx/conf.d/librenms.conf
+echo '  fastcgi_pass unix:/var/run/php/php7.2-fpm.sock;' >>/etc/nginx/conf.d/librenms.conf
 echo " }" >>/etc/nginx/conf.d/librenms.conf
-echo " location ~ /\.ht {" >>/etc/nginx/conf.d/librenms.conf
+echo ' location ~ /\.ht {' >>/etc/nginx/conf.d/librenms.conf
 echo "  deny all;" >>/etc/nginx/conf.d/librenms.conf
 echo " }" >>/etc/nginx/conf.d/librenms.conf
 echo "}" >>/etc/nginx/conf.d/librenms.conf
