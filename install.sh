@@ -5,6 +5,8 @@ echo "This will install LibreNMS. Developed on Ubuntu 18.04 lts"
 echo "###########################################################"
 echo "Updating the repo cache and installing needed repos"
 echo "###########################################################"
+# TODO: Add user configurablity here
+timedatectl set-timezone America/Denver
 apt update
 # Installing Required Packages
 apt install software-properties-common
