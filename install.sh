@@ -146,6 +146,7 @@ chown -R librenms:librenms /opt/librenms
 setfacl -d -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
 setfacl -R -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
 chmod -R ug=rwX /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
+sudo /opt/librenms/scripts/github-remove -d
 ######
 echo "###############################################################################################"
 echo "Naviagte to http://$HOSTNAME/install.php in you web browser to finish the installation."
