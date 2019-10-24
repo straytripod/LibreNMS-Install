@@ -62,17 +62,13 @@ setfacl -R -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstra
 ### Install PHP dependencies
 echo running PHP installer script as librenms user
 echo "###########################################################"
-# su - librenms
 # run php dependencies installer
-# sudo -u librenms bash -c '/opt/librenms/scripts/composer_wrapper.php install --no-dev'
 su librenms bash -c '/opt/librenms/scripts/composer_wrapper.php install --no-dev'
-###Log out of user
-##exit
 # Configure MySQL (mariadb)
 echo "Configuring MySQL (mariadb)"
 echo "###########################################################"
 systemctl restart mysql
-# log in to mysql and create DB, user, and privlages
+# Pass commands to mysql and create DB, user, and privlages
 echo "Setting up the Database"
 echo "###########################################################"
 echo "######### MySQL DB:librenms Password:librenms #############"
@@ -110,7 +106,8 @@ echo " index       index.php;" >>/etc/nginx/conf.d/librenms.conf
 echo " " >>/etc/nginx/conf.d/librenms.conf
 echo " charset utf-8;" >>/etc/nginx/conf.d/librenms.conf
 echo " gzip on;" >>/etc/nginx/conf.d/librenms.conf
-echo " gzip_types text/css application/javascript text/javascript application/x-javascript image/svg+xml  text/plain text/xsd text/xsl text/xml image/x-icon;" >>/etc/nginx/conf.d/librenms.conf
+echo " gzip_types text/css application/javascript text/javascript application/x-javascript image/svg+xml \
+text/plain text/xsd text/xsl text/xml image/x-icon;" >>/etc/nginx/conf.d/librenms.conf
 echo " location / {" >>/etc/nginx/conf.d/librenms.conf
 echo "  try_files $uri $uri/ /index.php?$query_string;" >>/etc/nginx/conf.d/librenms.conf
 echo " }" >>/etc/nginx/conf.d/librenms.conf
