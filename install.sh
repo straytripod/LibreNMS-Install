@@ -6,7 +6,21 @@ echo "###########################################################"
 echo "Updating the repo cache and installing needed repos"
 echo "###########################################################"
 # TODO: Add user configurablity here
-timedatectl set-timezone America/Denver
+echo "Have you set the system time zone?: [yes/no]"
+read ANS
+if [[ "$ANS" = "N" ]] || [[ "$ANS" = "No" ]] || [[ "$ASN" = "NO'" ]] || [[ "$ANS" = "no" ]] || [[ "$ANS" = "n" ]]; then
+  echo "We will list the timezones"
+  echo "Use q to quite the list"
+  echo "-----------------------------"
+  echo "Press enter to start the list"
+  echo "-----------------------------"
+  read
+  echo " "
+  timedatectl list-timezones
+  echo "Enter system time zone:"
+  read TZ
+  timedatectl set-timezone $TZ
+fi
 apt update
 # Installing Required Packages
 apt install software-properties-common
