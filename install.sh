@@ -144,6 +144,8 @@ chown -R librenms:librenms /opt/librenms
 setfacl -d -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
 setfacl -R -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
 chmod -R ug=rwX /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
+echo "Select yes to the following or you will get an error during validation"
+echo "------------------------------------------------------------------------"
 sudo /opt/librenms/scripts/github-remove -d
 ######
 echo "###############################################################################################"
