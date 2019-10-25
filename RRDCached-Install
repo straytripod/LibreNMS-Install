@@ -1,0 +1,20 @@
+# LibreNMS RDDCached Install script
+#!/bin/bash
+apt update
+apt install rrdcached
+sed -i 's+.DAEMON=.*+DAEMON=\/usr\/bin\/rrdcached+g' /etc/default/rrdcached 
+sed -i 's+.DAEMON_USER=.*+DAEMON_USER=librenms+g' /etc/default/rrdcached
+sed -i 's+.DAEMON_GROUP=.*+DAEMON_GROUP=librenms+g' /etc/default/rrdcached
+sed -i 's+.WRITE_THREADS=.*+WRITE_THREADS=4+g' /etc/default/rrdcached
+sed -i 's+.WRITE_TIMEOUT=.*+WRITE_TIMEOUT=1800+g' /etc/default/rrdcached
+sed -i 's+.WRITE_JITTER=.*+WRITE_JITTER=1800+g' /etc/default/rrdcachedsed 
+sed -i 's+.BASE_PATH=.*+BASE_PATH=/opt/librenms/rrd/+g' /etc/default/rrdcachedsed
+sed -i 's+.JOURNAL_PATH=.*+JOURNAL_PATH=/var/lib/rrdcached/journal/+g' /etc/default/rrdcachedsed
+sed -i 's+.PIDFILE=.*+PIDFILE=/run/rrdcached.pid+g' /etc/default/rrdcachedsed
+sed -i 's+.SOCKFILE=.*+SOCKFILE=/run/rrdcached.sock+g' /etc/default/rrdcachedsed
+sed -i 's+.SOCKGROUP=.*+SOCKGROUP=librenms+g' /etc/default/rrdcachedsed
+sed -i 's+.BASE_OPTIONS=.*+BASE_OPTIONS="-B -F -R"+g' /etc/default/rrdcachedsed
+chown librenms:librenms /var/lib/rrdcached/journal/
+systemctl restart rrdcached
+# $config['rrdcached'] = "unix:/var/run/rrdcached.sock";
+sed -i "s+.$config['rrdcached'] =.*+$config['rrdcached'] = '"unix:/var/run/rrdcached.sock"';+g" /etc/default/rrdcachedsed
