@@ -12,9 +12,7 @@ if [ "$ANS" = "N" ] || [ "$ANS" = "No" ] || [ "$ASN" = "NO'" ] || [ "$ANS" = "no
   echo "We will list the timezones"
   echo "Use q to quite the list"
   echo "-----------------------------"
-  echo "Press enter to start the list"
-  echo "-----------------------------"
-  read
+  sleep 5
   echo " "
   timedatectl list-timezones
   echo "Enter system time zone:"
