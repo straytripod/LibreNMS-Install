@@ -69,9 +69,8 @@ systemctl restart mysql
 # Pass commands to mysql and create DB, user, and privlages
 echo "Please enter a password for the Database:"
 read ANS
-echo "MySQL DB:librenms Password:$ANS"
 echo "###########################################################"
-echo "######### MySQL DB:librenms Password:$ANS #############"
+echo "######### MySQL DB:librenms Password:$ANS #################"
 echo "###########################################################"
 mysql -uroot -e "CREATE DATABASE librenms CHARACTER SET utf8 COLLATE utf8_unicode_ci; CREATE USER 'librenms'@'localhost' IDENTIFIED BY '$ANS'; GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost'; FLUSH PRIVILEGES;"
 ##### Within the [mysqld] section of the config file please add: ####
