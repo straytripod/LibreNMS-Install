@@ -15,8 +15,7 @@ sed -i 's+.PIDFILE=.*+PIDFILE=/run/rrdcached.pid+g' /etc/default/rrdcachedsed
 sed -i 's+.SOCKFILE=.*+SOCKFILE=/run/rrdcached.sock+g' /etc/default/rrdcachedsed
 sed -i 's+.SOCKGROUP=.*+SOCKGROUP=librenms+g' /etc/default/rrdcachedsed
 sed -i 's+.BASE_OPTIONS=.*+BASE_OPTIONS="-B -F -R"+g' /etc/default/rrdcachedsed
+sed -i 's+#\$config+\$config\ +g'/etc/default/rrdcachedsed
 chown librenms:librenms /var/lib/rrdcached/journal/
 systemctl restart rrdcached
-# V V Still working on this V V 
-# $config['rrdcached'] = "unix:/var/run/rrdcached.sock";
-sed -i "s+.$config['rrdcached'] =.*+$config['rrdcached'] = '"unix:/var/run/rrdcached.sock"';+g" /etc/default/rrdcachedsed
+
