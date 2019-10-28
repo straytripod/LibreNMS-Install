@@ -67,11 +67,13 @@ echo "Configuring MySQL (mariadb)"
 echo "###########################################################"
 systemctl restart mysql
 # Pass commands to mysql and create DB, user, and privlages
-echo "Setting up the Database"
+echo "Please enter a password for the Database:"
+read ANS
+echo "MySQL DB:librenms Password:$ANS"
 echo "###########################################################"
-echo "######### MySQL DB:librenms Password:librenms #############"
+echo "######### MySQL DB:librenms Password:$ANS #############"
 echo "###########################################################"
-mysql -uroot -e "CREATE DATABASE librenms CHARACTER SET utf8 COLLATE utf8_unicode_ci; CREATE USER 'librenms'@'localhost' IDENTIFIED BY 'librenms'; GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost'; FLUSH PRIVILEGES;"
+mysql -uroot -e "CREATE DATABASE librenms CHARACTER SET utf8 COLLATE utf8_unicode_ci; CREATE USER 'librenms'@'localhost' IDENTIFIED BY '$ANS'; GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost'; FLUSH PRIVILEGES;"
 ##### Within the [mysqld] section of the config file please add: ####
 ## innodb_file_per_table=1
 ## lower_case_table_names=0
