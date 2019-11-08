@@ -58,7 +58,7 @@ setfacl -d -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstra
 # mod ACL recursively
 setfacl -R -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
 ### Install PHP dependencies
-echo running PHP installer script as librenms user
+echo "running PHP installer script as librenms user"
 echo "###########################################################"
 # run php dependencies installer
 su librenms bash -c '/opt/librenms/scripts/composer_wrapper.php install --no-dev'
