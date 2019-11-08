@@ -85,9 +85,12 @@ systemctl restart mysql
 # /etc/php/7.2/fpm/php.ini
 # /etc/php/7.2/cli/php.ini
 echo "timezone is set to America/Denver in /etc/php/7.2/fpm/php.ini and /etc/php/7.2/cli/php.ini change as needed."
+echo "Changing to $TZ"
 echo "################################################################################"
-sed -i '/;date.timezone =/ a date.timezone = America/Denver' /etc/php/7.2/fpm/php.ini
-sed -i '/;date.timezone =/ a date.timezone = America/Denver' /etc/php/7.2/cli/php.ini
+sed -i '/;date.timezone =/ a date.timezone = $TZ' /etc/php/7.2/fpm/php.ini
+sed -i '/;date.timezone =/ a date.timezone = $TZ' /etc/php/7.2/cli/php.ini
+echo "????????????????????????????????????????????????????????????????????????????????"
+read -p "Please review changes in another session then press [Enter] to continue..."
 ### restart PHP-fpm
 systemctl restart php7.2-fpm
 ####  Config NGINX
@@ -129,7 +132,7 @@ systemctl restart nginx
 cp /opt/librenms/snmpd.conf.example /etc/snmp/snmpd.conf
 ### Edit the text which says RANDOMSTRINGGOESHERE and set your own community string.
 echo "We need to change community string"
-echo "Enter community name [E.G.: public]: "
+echo "Enter community string for this server [E.G.: public]: "
 read ANS
 sed -i 's/RANDOMSTRINGGOESHERE/$ANS/g' /etc/snmp/snmpd.conf
 ######## get standard MIBs
