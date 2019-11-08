@@ -72,7 +72,10 @@ read ANS
 echo "###########################################################"
 echo "######### MySQL DB:librenms Password:$ANS #################"
 echo "###########################################################"
-mysql -uroot -e "CREATE DATABASE librenms CHARACTER SET utf8 COLLATE utf8_unicode_ci; CREATE USER 'librenms'@'localhost' IDENTIFIED BY '$ANS'; GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost'; FLUSH PRIVILEGES;"
+mysql -uroot -e "CREATE DATABASE librenms CHARACTER SET utf8 COLLATE utf8_unicode_ci;"
+mysql -uroot -e "CREATE USER 'librenms'@'localhost' IDENTIFIED BY '$ANS';"
+mysql -uroot -e "GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost';"
+mysql -uroot -e "FLUSH PRIVILEGES;"
 ##### Within the [mysqld] section of the config file please add: ####
 ## innodb_file_per_table=1
 ## lower_case_table_names=0
