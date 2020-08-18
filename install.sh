@@ -58,7 +58,7 @@ setfacl -d -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstra
 # mod ACL recursively
 setfacl -R -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
 ### Install PHP dependencies
-echo running PHP installer script as librenms user
+echo "running PHP installer script as librenms user"
 echo "###########################################################"
 # run php dependencies installer
 su librenms bash -c '/opt/librenms/scripts/composer_wrapper.php install --no-dev'
@@ -72,7 +72,10 @@ read ANS
 echo "###########################################################"
 echo "######### MySQL DB:librenms Password:$ANS #################"
 echo "###########################################################"
-mysql -uroot -e "CREATE DATABASE librenms CHARACTER SET utf8 COLLATE utf8_unicode_ci; CREATE USER 'librenms'@'localhost' IDENTIFIED BY '$ANS'; GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost'; FLUSH PRIVILEGES;"
+mysql -uroot -e "CREATE DATABASE librenms CHARACTER SET utf8 COLLATE utf8_unicode_ci;"
+mysql -uroot -e "CREATE USER 'librenms'@'localhost' IDENTIFIED BY '$ANS';"
+mysql -uroot -e "GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost';"
+mysql -uroot -e "FLUSH PRIVILEGES;"
 ##### Within the [mysqld] section of the config file please add: ####
 ## innodb_file_per_table=1
 ## lower_case_table_names=0
@@ -85,9 +88,12 @@ systemctl restart mysql
 # /etc/php/7.2/fpm/php.ini
 # /etc/php/7.2/cli/php.ini
 echo "timezone is set to America/Denver in /etc/php/7.2/fpm/php.ini and /etc/php/7.2/cli/php.ini change as needed."
+echo "Changing to $TZ"
 echo "################################################################################"
-sed -i '/;date.timezone =/ a date.timezone = America/Denver' /etc/php/7.2/fpm/php.ini
-sed -i '/;date.timezone =/ a date.timezone = America/Denver' /etc/php/7.2/cli/php.ini
+sed -i '/;date.timezone =/ a date.timezone = $TZ' /etc/php/7.2/fpm/php.ini
+sed -i '/;date.timezone =/ a date.timezone = $TZ' /etc/php/7.2/cli/php.ini
+echo "????????????????????????????????????????????????????????????????????????????????"
+read -p "Please review changes in another session then press [Enter] to continue..."
 ### restart PHP-fpm
 systemctl restart php7.2-fpm
 ####  Config NGINX
@@ -129,7 +135,7 @@ systemctl restart nginx
 cp /opt/librenms/snmpd.conf.example /etc/snmp/snmpd.conf
 ### Edit the text which says RANDOMSTRINGGOESHERE and set your own community string.
 echo "We need to change community string"
-echo "Enter community name [E.G.: public]: "
+echo "Enter community string for this server [E.G.: public]: "
 read ANS
 sed -i 's/RANDOMSTRINGGOESHERE/$ANS/g' /etc/snmp/snmpd.conf
 ######## get standard MIBs
