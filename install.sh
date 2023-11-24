@@ -19,7 +19,7 @@ if [ "$ANS" = "N" ] || [ "$ANS" = "No" ] || [ "$ASN" = "NO'" ] || [ "$ANS" = "no
   read TZ
   timedatectl set-timezone $TZ
   else 
-  TZ="cat /etc/timezone"
+   TZ="$(cat /etc/timezone)"
 fi
 apt update
 # Installing Required Packages
