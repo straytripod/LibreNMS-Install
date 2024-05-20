@@ -32,9 +32,9 @@ echo "Installing dependancies"
 echo "###########################################################"
 # Version 8 has moved json into core code and it is no longer a separate module. 
 apt install -y acl curl composer fping git graphviz imagemagick mariadb-client \
-mariadb-server mtr-tiny nginx-full nmap php8.1-cli php8.1-curl php8.1-fpm \
-php8.1-gd php8.1-mbstring php8.1-mysql php8.1-snmp php8.1-xml \
-php8.1-zip python3-memcache python3-dev python3-pip python3-mysqldb rrdtool \
+mariadb-server mtr-tiny nginx-full nmap php8.2-cli php8.2-curl php8.2-fpm \
+php8.2-gd php8.2-mbstring php8.2-mysql php8.2-snmp php8.2-xml \
+php8.2-zip python3-memcache python3-dev python3-pip python3-mysqldb rrdtool \
 snmp snmpd whois unzip
 # Download LibreNMS
 echo "Downloading libreNMS to /opt"
