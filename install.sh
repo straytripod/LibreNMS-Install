@@ -32,9 +32,9 @@ echo "Installing dependancies"
 echo "###########################################################"
 # Version 8 has moved json into core code and it is no longer a separate module. 
 apt install -y acl curl composer fping git graphviz imagemagick mariadb-client \
-mariadb-server mtr-tiny nginx-full nmap php8.1-cli php8.1-curl php8.1-fpm \
-php8.1-gd php8.1-mbstring php8.1-mysql php8.1-snmp php8.1-xml \
-php8.1-zip python3-memcache python3-dev python3-pip python3-mysqldb rrdtool \
+mariadb-server mtr-tiny nginx-full nmap php8.2-cli php8.2-curl php8.2-fpm \
+php8.2-gd php8.2-mbstring php8.2-mysql php8.2-snmp php8.2-xml \
+php8.2-zip python3-memcache python3-dev python3-pip python3-mysqldb rrdtool \
 snmp snmpd whois unzip
 # Download LibreNMS
 echo "Downloading libreNMS to /opt"
@@ -90,30 +90,30 @@ systemctl restart mysql
 systemctl enable mariadb
 ### Configure and Start PHP-FPM ####
 ## NEW in 20.04 brought forward to 22.04##
-cp /etc/php/8.1/fpm/pool.d/www.conf /etc/php/8.1/fpm/pool.d/librenms.conf
-# vi /etc/php/8.1/fpm/pool.d/librenms.conf
+cp /etc/php/8.2/fpm/pool.d/www.conf /etc/php/8.2/fpm/pool.d/librenms.conf
+# vi /etc/php/8.2/fpm/pool.d/librenms.conf
 #line 4
-sed -i 's/\[www\]/\[librenms\]/' /etc/php/8.1/fpm/pool.d/librenms.conf
+sed -i 's/\[www\]/\[librenms\]/' /etc/php/8.2/fpm/pool.d/librenms.conf
 # line 23
-sed -i 's/user = www-data/user = librenms/' /etc/php/8.1/fpm/pool.d/librenms.conf
+sed -i 's/user = www-data/user = librenms/' /etc/php/8.2/fpm/pool.d/librenms.conf
 # line 24
-sed -i 's/group = www-data/group = librenms/' /etc/php/8.1/fpm/pool.d/librenms.conf
+sed -i 's/group = www-data/group = librenms/' /etc/php/8.2/fpm/pool.d/librenms.conf
 # line 36
-sed -i 's/listen = \/run\/php\/php8.1-fpm.sock/listen = \/run\/php-fpm-librenms.sock/' /etc/php/8.1/fpm/pool.d/librenms.conf
+sed -i 's/listen = \/run\/php\/php8.2-fpm.sock/listen = \/run\/php-fpm-librenms.sock/' /etc/php/8.2/fpm/pool.d/librenms.conf
 #### Change time zone to America/Denver in the following: ####
-# /etc/php/8.1/fpm/php.ini
-# /etc/php/8.1/cli/php.ini
-echo "Timezone is being set to $TZ in /etc/php/8.1/fpm/php.ini and /etc/php/7.2/cli/php.ini change if needed."
+# /etc/php/8.2/fpm/php.ini
+# /etc/php/8.2/cli/php.ini
+echo "Timezone is being set to $TZ in /etc/php/8.2/fpm/php.ini and /etc/php/7.2/cli/php.ini change if needed."
 echo "Changing to $TZ"
 echo "################################################################################"
 # Line 969 Appened
-sed -i "/;date.timezone =/ a date.timezone = $TZ" /etc/php/8.1/fpm/php.ini
+sed -i "/;date.timezone =/ a date.timezone = $TZ" /etc/php/8.2/fpm/php.ini
 # Line 969 Appended
-sed -i "/;date.timezone =/ a date.timezone = $TZ" /etc/php/8.1/cli/php.ini
+sed -i "/;date.timezone =/ a date.timezone = $TZ" /etc/php/8.2/cli/php.ini
 echo "????????????????????????????????????????????????????????????????????????????????"
 read -p "Please review changes in another terminal session then press [Enter] to continue..."
 ### restart PHP-fpm ###
-systemctl restart php8.1-fpm
+systemctl restart php8.2-fpm
 ####  Config NGINX webserver ####
 ### Create the .conf file ###
 echo "################################################################################"
@@ -150,7 +150,7 @@ echo "}" >>/etc/nginx/conf.d/librenms.conf
 ##### remove the default site link #####
 rm /etc/nginx/sites-enabled/default
 systemctl restart nginx
-systemctl restart php8.1-fpm
+systemctl restart php8.2-fpm
 #### Enble LNMS Command completion ####
 ln -s /opt/librenms/lnms /usr/bin/lnms
 cp /opt/librenms/misc/lnms-completion.bash /etc/bash_completion.d/
@@ -168,7 +168,7 @@ chmod +x /usr/bin/distro
 systemctl enable snmpd
 systemctl restart snmpd
 ##### Setup Cron job
-cp /opt/librenms/librenms.nonroot.cron /etc/cron.d/librenms
+cp /opt/librenms/dist/librenms.cron /etc/cron.d/librenms
 ##### Setup logrotate config
 cp /opt/librenms/misc/librenms.logrotate /etc/logrotate.d/librenms
 <<removed
