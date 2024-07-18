@@ -1,5 +1,6 @@
 # LibreNMS Install script
 # NOTE: Script wil update and upgrade currently installed packages.
+# Updated for ubuntu 24.04
 #!/bin/bash
 echo "This will install LibreNMS. Developed on Ubuntu 22.04 lts"
 echo "###########################################################"
@@ -18,24 +19,40 @@ if [ "$ANS" = "N" ] || [ "$ANS" = "No" ] || [ "$ASN" = "NO'" ] || [ "$ANS" = "no
   echo "Enter system time zone:"
   read TZ
   timedatectl set-timezone $TZ
-  else 
+  echo "The timezone $TZ  has been set"
+  else
    TZ="$(cat /etc/timezone)"
 fi
+echo " "
+echo "updating repos"
 apt update
 # Installing Required Packages
-apt install software-properties-common
+echo " "
+echo "Installing required packages"
+apt install -y software-properties-common
 add-apt-repository universe
 echo "Upgrading installed packages in the system"
 echo "###########################################################"
 apt upgrade -y
 echo "Installing dependancies"
 echo "###########################################################"
+sleep 1
+echo " Here "
+sleep 1
+echo  " we "
+sleep 2
+echo " GO!!! "
+echo "###########################################################"
+echo "###########################################################"
+
 # Version 8 has moved json into core code and it is no longer a separate module. 
-apt install -y acl curl composer fping git graphviz imagemagick mariadb-client \
+# composer, python3-memcashe, not listed for 22.04
+apt install -y acl composer python3-memcache curl fping git graphviz imagemagick mariadb-client \
 mariadb-server mtr-tiny nginx-full nmap php8.3-cli php8.3-curl php8.3-fpm \
-php8.3-gd php8.3-mbstring php8.3-mysql php8.3-snmp php8.3-xml \
-php8.3-zip python3-memcache python3-dev python3-pip python3-mysqldb rrdtool \
-snmp snmpd whois unzip
+php8.3-gd php8.3-gmp php8.3-mbstring php8.3-mysql php8.3-snmp php8.3-xml \
+php8.3-zip python3-pymysql python3-psutil python3-command-runner python3-dotenv \
+python3-redis python3-setuptools python3-systemd python3-pip python3-mysqldb rrdtool \
+snmp snmpd whois unzip traceroute \
 # Download LibreNMS
 echo "Downloading libreNMS to /opt"
 echo "###########################################################"
@@ -66,15 +83,25 @@ echo "running PHP installer script as librenms user"
 echo "###########################################################"
 # run php dependencies installer
 su librenms bash -c '/opt/librenms/scripts/composer_wrapper.php install --no-dev'
-# Configure MySQL (mariadb)
-echo "Configuring MySQL (mariadb)"
+# warn for failure
+echo " "
 echo "###########################################################"
-systemctl restart mysql
+echo "The script may fail when using a proxy. The workaround is to install the composer \
+package manually. See the install page of LibreNMS."
+echo " "
+sleep 10
+# Configure MySQL (mariadb)
+echo "###########################################################"
+echo "Configuring MariaDB"
+echo "###########################################################"
+systemctl restart mariadb
 # Pass commands to mysql and create DB, user, and privlages
+echo " "
 echo "Please enter a password for the Database:"
 read ANS
+echo " "
 echo "###########################################################"
-echo "######### MySQL DB:librenms Password:$ANS #################"
+echo "######### MariaDB DB:librenms Password:$ANS #################"
 echo "###########################################################"
 mysql -uroot -e "CREATE DATABASE librenms CHARACTER SET utf8 COLLATE utf8_unicode_ci;"
 mysql -uroot -e "CREATE USER 'librenms'@'localhost' IDENTIFIED BY '$ANS';"
@@ -86,7 +113,7 @@ mysql -uroot -e "FLUSH PRIVILEGES;"
 sed -i '/mysqld]/ a lower_case_table_names=0' /etc/mysql/mariadb.conf.d/50-server.cnf
 sed -i '/mysqld]/ a innodb_file_per_table=1' /etc/mysql/mariadb.conf.d/50-server.cnf
 ##### Restart mysql and enable run at startup
-systemctl restart mysql
+systemctl restart mariadb
 systemctl enable mariadb
 ### Configure and Start PHP-FPM ####
 ## NEW in 20.04 brought forward to 22.04##
@@ -100,18 +127,20 @@ sed -i 's/user = www-data/user = librenms/' /etc/php/8.3/fpm/pool.d/librenms.con
 sed -i 's/group = www-data/group = librenms/' /etc/php/8.3/fpm/pool.d/librenms.conf
 # line 36
 sed -i 's/listen = \/run\/php\/php8.3-fpm.sock/listen = \/run\/php-fpm-librenms.sock/' /etc/php/8.3/fpm/pool.d/librenms.conf
-#### Change time zone to America/Denver in the following: ####
+#### Change time zone to America/[City] in the following: ####
 # /etc/php/8.3/fpm/php.ini
 # /etc/php/8.3/cli/php.ini
-echo "Timezone is being set to $TZ in /etc/php/8.3/fpm/php.ini and /etc/php/7.2/cli/php.ini change if needed."
+echo "Timezone is being set to $TZ in /etc/php/8.3/fpm/php.ini and /etc/php/8.3/cli/php.ini change if needed."
 echo "Changing to $TZ"
 echo "################################################################################"
+echo " "
 # Line 969 Appened
 sed -i "/;date.timezone =/ a date.timezone = $TZ" /etc/php/8.3/fpm/php.ini
 # Line 969 Appended
 sed -i "/;date.timezone =/ a date.timezone = $TZ" /etc/php/8.3/cli/php.ini
 echo "????????????????????????????????????????????????????????????????????????????????"
 read -p "Please review changes in another terminal session then press [Enter] to continue..."
+echo " "
 ### restart PHP-fpm ###
 systemctl restart php8.3-fpm
 ####  Config NGINX webserver ####
@@ -134,11 +163,7 @@ text/plain text/xsd text/xsl text/xml image/x-icon;" >>/etc/nginx/conf.d/librenm
 echo ' location / {' >>/etc/nginx/conf.d/librenms.conf
 echo '  try_files $uri $uri/ /index.php?$query_string;' >>/etc/nginx/conf.d/librenms.conf
 echo " }" >>/etc/nginx/conf.d/librenms.conf
-  #echo ' location /api/v0 {' >>/etc/nginx/conf.d/librenms.conf
 echo ' location ~ [^/]\.php(/|$) {' >>/etc/nginx/conf.d/librenms.conf
-  #echo '  try_files $uri $uri/ /api_v0.php?$query_string;' >>/etc/nginx/conf.d/librenms.conf
-  #echo " }" >>/etc/nginx/conf.d/librenms.conf
-  #echo ' location ~ \.php {' >>/etc/nginx/conf.d/librenms.conf
 echo '  fastcgi_pass unix:/run/php-fpm-librenms.sock;' >>/etc/nginx/conf.d/librenms.conf
 echo '  fastcgi_split_path_info ^(.+\.php)(/.+)$;' >>/etc/nginx/conf.d/librenms.conf
 echo "  include fastcgi.conf;" >>/etc/nginx/conf.d/librenms.conf
@@ -169,21 +194,17 @@ systemctl enable snmpd
 systemctl restart snmpd
 ##### Setup Cron job
 cp /opt/librenms/dist/librenms.cron /etc/cron.d/librenms
+####Enable the scheduler
+cp /opt/librenms/dist/librenms-scheduler.service /opt/librenms/dist/librenms-scheduler.timer /etc/systemd/system/
+systemctl enable librenms-scheduler.timer
+systemctl start librenms-scheduler.timer
+
 ##### Setup logrotate config
 cp /opt/librenms/misc/librenms.logrotate /etc/logrotate.d/librenms
-<<removed
-#### Set permissions and file access control
-chown -R librenms:librenms /opt/librenms/config.php
-setfacl -d -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
-setfacl -R -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
-chmod -R ug=rwX /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
-echo "Select yes to the following or you will get an error during validation"
-echo "------------------------------------------------------------------------"
-sudo /opt/librenms/scripts/github-remove -d
-removed
-echo "Installing validation fix"
-sudo -H -u librenms bash -c 'pip3 install --user -U -r /opt/librenms/requirements.txt'
 ######
+echo " "
 echo "###############################################################################################"
 echo "Naviagte to http://$HOSTNAME/install in you web browser to finish the installation."
 echo "###############################################################################################"
+echo " Have a nice day! ;)"
+#END#
