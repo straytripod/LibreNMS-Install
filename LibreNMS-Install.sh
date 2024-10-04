@@ -9,7 +9,7 @@ echo "###########################################################"
 # Set the system timezone
 echo "Have you set the system time zone?: [yes/no]"
 read ANS
-if [ "$ANS" = "N" ] || [ "$ANS" = "No" ] || [ "$ANS" = "NO'" ] || [ "$ANS" = "no" ] || [ "$ANS" = "n" ]; then
+if [ "$ANS" = "N" ] || [ "$ANS" = "No" ] || [ "$ANS" = "NO" ] || [ "$ANS" = "no" ] || [ "$ANS" = "n" ]; then
   echo "We will list the timezones"
   echo "Use q to quite the list"
   echo "-----------------------------"
