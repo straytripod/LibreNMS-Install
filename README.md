@@ -1,6 +1,7 @@
 # LibreNMS-Install
 A batch script to install LibNMS on Ubuntu 18.04 LTS  Originally.</br>
 Updated the script to work on Ubuntu 24.04 LTS with help from skender85<br>
+Updated for Ubuntu 26.04 LTS (PHP 8.5 from the Ubuntu archive, MariaDB 11.8). On 24.04 it installs PHP 8.5 from the ondrej/php PPA, because LibreNMS now needs PHP 8.4 or newer.<br>
 Fixed bugs and fuly tested the script. Make sure to run a validation and fix the DB Tables.<br>
 
 # LibreNMS-Install-v2
