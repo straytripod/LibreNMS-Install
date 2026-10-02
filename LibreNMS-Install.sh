@@ -70,6 +70,12 @@ if [[ "$USE_PPA" == "yes" ]]; then
     apt update -y
 fi
 
+# Stop early if this release has no PHP $PHP_VER packages
+if ! apt-cache show "php${PHP_VER}-fpm" &>/dev/null; then
+    echo "php${PHP_VER}-fpm is not available on $PRETTY_NAME. Add a PHP $PHP_VER repository and re-run."
+    exit 1
+fi
+
 echo "Upgrading installed packages in the system"
 echo "###########################################################"
 apt upgrade -y
@@ -154,6 +160,7 @@ DBPASS_SQL="${DBPASS_SQL//\'/\\\'}"
 mysql -uroot <<EOF
 CREATE DATABASE IF NOT EXISTS librenms CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS 'librenms'@'localhost' IDENTIFIED BY '${DBPASS_SQL}';
+ALTER USER 'librenms'@'localhost' IDENTIFIED BY '${DBPASS_SQL}';
 GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost';
 FLUSH PRIVILEGES;
 EOF
@@ -175,7 +182,11 @@ echo "##########################################################################
 echo "Enter the server name for /etc/nginx/conf.d/librenms.conf"
 echo "Use the IP unless the name is resolvable."
 echo "################################################################################"
-read -r -p "Enter Hostname [x.x.x.x or serv.example.com]: " HOSTNAME
+while true; do
+    read -r -p "Enter Hostname [x.x.x.x or serv.example.com]: " HOSTNAME
+    [[ "$HOSTNAME" =~ ^[A-Za-z0-9._:-]+$ ]] && break
+    echo "Enter a hostname or IP address (letters, digits, dots, dashes, colons)."
+done
 # Quoted heredoc so nginx variables ($uri, $query_string) are written literally
 cat > /etc/nginx/conf.d/librenms.conf <<'EOF'
 server {
@@ -210,12 +221,16 @@ systemctl restart nginx
 
 #### Enable LNMS Command completion ####
 ln -sf /opt/librenms/lnms /usr/bin/lnms
+mkdir -p /etc/bash_completion.d
 cp /opt/librenms/misc/lnms-completion.bash /etc/bash_completion.d/
 
 ### Configure snmpd
 cp /opt/librenms/snmpd.conf.example /etc/snmp/snmpd.conf
-read -r -p "Enter SNMP community string for this server [e.g.: public]: " ANS
-sed -i "s/RANDOMSTRINGGOESHERE/$ANS/g" /etc/snmp/snmpd.conf
+read -r -p "Enter SNMP community string for this server [public]: " ANS
+ANS="${ANS:-public}"
+# Escape characters that are special in a sed replacement (\ & /)
+ANS_SED="$(printf '%s' "$ANS" | sed 's/[\\&/]/\\&/g')"
+sed -i "s/RANDOMSTRINGGOESHERE/$ANS_SED/g" /etc/snmp/snmpd.conf
 
 ######## distro script used by snmpd extend
 curl -fsSL -o /usr/bin/distro https://raw.githubusercontent.com/librenms/librenms-agent/master/snmp/distro
@@ -228,6 +243,7 @@ systemctl restart snmpd
 ##### Setup Cron job
 cp /opt/librenms/dist/librenms.cron /etc/cron.d/librenms
 systemctl enable cron
+systemctl start cron
 
 #### Enable the scheduler
 cp /opt/librenms/dist/librenms-scheduler.service /opt/librenms/dist/librenms-scheduler.timer /etc/systemd/system/
