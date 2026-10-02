@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # ==============================================================
 # 🌐 LibreNMS Installer Script
-# Target: Ubuntu 24.04 Minimal
-# 
+# Target: Ubuntu 26.04 LTS (also supports 24.04 LTS via the ondrej/php PPA)
+# Follows https://docs.librenms.org/Installation/Install-LibreNMS/ (NGINX)
+#
 # Installs and configures LibreNMS end-to-end:
-#  • Detects or installs required packages (PHP, MySQL, Nginx, SNMP, etc.)
+#  • Installs required packages (PHP, MariaDB, Nginx, SNMP, etc.)
 #  • Creates librenms user, clones repo, sets ACLs
 #  • Installs Composer deps, configures MariaDB (DB + user + charset)
 #  • Sets up PHP-FPM pool, Nginx vhost with self-signed SSL
 #  • Deploys SNMP agent, cron jobs, logrotate, systemd scheduler
 #  • Updates .env with APP_URL/SESSION_SECURE_COOKIE
-# 
+#
 # Non-interactive DevOps variables:
 #   LIBRENMS_DOMAIN, DB_PASSWORD, SNMP_COMMUNITY, TZ, PHP_VER,
 #   USE_UTF8_LOCALES
@@ -20,6 +21,8 @@
 set -euo pipefail
 IFS=$'\n\t'
 trap 'echo "✖ Error at line $LINENO"; exit 1' ERR
+# Files written to /etc must not be world-writable (cron and MariaDB ignore them)
+umask 022
 
 # --- Ensure running as root ---
 if [[ $EUID -ne 0 ]]; then
@@ -41,31 +44,50 @@ success() { echo -e "${GRN}✔ ${1}${RST}"; }
 skip()    { echo -e "${YEL}⏭ ${1}${RST}"; }
 error()   { echo -e "${RED}✖ ${1}${RST}" >&2; }
 
+# === 🐧 Detect the Ubuntu release ===
+. /etc/os-release
+case "${VERSION_ID:-}" in
+  26.04) USE_PPA="no" ;;  # PHP 8.5 ships in the Ubuntu archive
+  24.04) USE_PPA="yes" ;; # PHP 8.3 is too old; PHP 8.5 comes from the ondrej/php PPA
+  *)
+    echo -e "${YEL}This script supports Ubuntu 26.04 and 24.04. Detected: ${PRETTY_NAME:-unknown}${RST}"
+    read -rp "Continue anyway? [y/N]: " CONFIRM
+    [[ "$CONFIRM" =~ ^[Yy]$ ]] || exit 1
+    USE_PPA="no"
+    ;;
+esac
+
 # === 🔧 VARIABLES ===
 LIBRENMS_DOMAIN="${LIBRENMS_DOMAIN:-}"
 DB_PASSWORD="${DB_PASSWORD:-}"
 SNMP_COMMUNITY="${SNMP_COMMUNITY:-}"
 TZ="${TZ:-}"
-PHP_VER="${PHP_VER:-}"
+PHP_VER="${PHP_VER:-8.5}" # LibreNMS: minimum PHP 8.4, recommended 8.5
 USE_UTF8_LOCALES="${USE_UTF8_LOCALES:-yes}"
 
 # === 📥 PROMPTS IF VARIABLES NOT SET ===
-[[ -z "$LIBRENMS_DOMAIN" ]] && read -rp "Enter LibreNMS domain or IP: " LIBRENMS_DOMAIN
-[[ -z "$DB_PASSWORD" ]]     && { DB_PASSWORD=$(openssl rand -hex 16); echo -e "${YEL}Generated DB password: $DB_PASSWORD${RST}"; }
-[[ -z "$SNMP_COMMUNITY" ]]  && read -rp "Enter SNMP community [public]: " SNMP_COMMUNITY && SNMP_COMMUNITY=${SNMP_COMMUNITY:-public}
+while [[ ! "$LIBRENMS_DOMAIN" =~ ^[A-Za-z0-9._:-]+$ ]]; do
+  read -rp "Enter LibreNMS domain or IP: " LIBRENMS_DOMAIN
+done
+if [[ -z "$DB_PASSWORD" ]]; then
+  DB_PASSWORD=$(openssl rand -hex 16)
+  echo -e "${YEL}Generated DB password: $DB_PASSWORD${RST}"
+fi
+if [[ -z "$SNMP_COMMUNITY" ]]; then
+  read -rp "Enter SNMP community [public]: " SNMP_COMMUNITY
+  SNMP_COMMUNITY=${SNMP_COMMUNITY:-public}
+fi
+# /etc/timezone no longer exists on current Ubuntu releases
+SYS_TZ="$(timedatectl show -p Timezone --value 2>/dev/null || true)"
+SYS_TZ="${SYS_TZ:-Etc/UTC}"
 if [[ -z "$TZ" ]]; then
   echo -e "${CYN}Refer to timezone list: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones${RST}"
-  read -rp "Enter timezone (e.g. America/Phoenix): " TZ
-  timedatectl set-timezone "$TZ"
+  read -rp "Enter timezone [$SYS_TZ]: " TZ
+  TZ="${TZ:-$SYS_TZ}"
 fi
-
-if [[ -z "$PHP_VER" ]]; then
-  if [[ -d /etc/php ]]; then
-    PHP_VER=$(ls /etc/php | grep -E '^[0-9]+\.[0-9]+' | sort -Vr | head -n1)
-  else
-    PHP_VER="8.4"
-    echo -e "${YEL}⚠ No PHP found; defaulting to PHP $PHP_VER.${RST}"
-  fi
+# system and PHP timezone must match, or validate.php reports a failure
+if [[ "$TZ" != "$SYS_TZ" ]]; then
+  timedatectl set-timezone "$TZ"
 fi
 
 # === 🚨 Nuke Existing Installation Prompt ===
@@ -88,17 +110,20 @@ if [[ -d /opt/librenms ]] || mysql -uroot -e "USE librenms;" &>/dev/null; then
   rm -rf /opt/librenms \
          /etc/nginx/sites-available/librenms.conf \
          /etc/nginx/sites-enabled/librenms.conf \
+         /etc/nginx/conf.d/librenms.conf \
          /etc/ssl/librenms \
-         /etc/php/${PHP_VER}/fpm/pool.d/librenms.conf \
+         /etc/php/*/fpm/pool.d/librenms.conf \
          /etc/snmp/snmpd.conf /usr/bin/distro \
          /etc/cron.d/librenms /etc/logrotate.d/librenms
 
-  echo "⏳ Dropping database..."
-  mysql -uroot <<SQL
+  if command -v mysql &>/dev/null; then
+    echo "⏳ Dropping database..."
+    mysql -uroot <<SQL
 DROP DATABASE IF EXISTS librenms;
 DROP USER IF EXISTS 'librenms'@'localhost';
 FLUSH PRIVILEGES;
 SQL
+  fi
 
   success "Previous LibreNMS installation nuked."
 fi
@@ -107,21 +132,32 @@ fi
 banner "Installing Required Packages"
 export DEBIAN_FRONTEND=noninteractive
 
-apt update -y \
-  && apt full-upgrade -y \
-  && apt install -y software-properties-common
+apt update -y
+apt full-upgrade -y
 
-if [[ "$USE_UTF8_LOCALES" == "yes" ]]; then
-  LC_ALL=C.UTF-8 add-apt-repository -y universe
-  LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
-else
-  add-apt-repository -y universe
-  add-apt-repository -y ppa:ondrej/php
+if [[ "$USE_PPA" == "yes" ]]; then
+  apt install -y software-properties-common
+  if [[ "$USE_UTF8_LOCALES" == "yes" ]]; then
+    LC_ALL=C.UTF-8 add-apt-repository -y universe
+    LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
+  else
+    add-apt-repository -y universe
+    add-apt-repository -y ppa:ondrej/php
+  fi
+  apt update -y
 fi
 
-# clang all-in-one to minimize cache reloads
-PACKAGES=(acl composer curl fping git graphviz imagemagick mariadb-client \
-  mariadb-server mtr-tiny nginx-full nmap cron \
+# stop early if this release has no PHP $PHP_VER packages
+if ! apt-cache show "php${PHP_VER}-fpm" &>/dev/null; then
+  error "php${PHP_VER}-fpm is not available on ${PRETTY_NAME:-this release}. Add a PHP ${PHP_VER} repository or set PHP_VER, then re-run."
+  exit 1
+fi
+
+# Package list from the LibreNMS install guide (Ubuntu 26.04 / NGINX).
+# composer is not needed: composer_wrapper.php downloads it.
+# lsb-release is needed by the distro SNMP extend; cron is missing on Ubuntu minimal.
+PACKAGES=(acl curl fping git graphviz imagemagick mariadb-client \
+  mariadb-server mtr-tiny nginx-full nmap cron lsb-release openssl \
   php${PHP_VER}-{cli,curl,fpm,gd,gmp,mbstring,mysql,snmp,xml,zip} \
   python3-{pip,pymysql,psutil,setuptools,systemd,venv,dotenv,redis} \
   python3-command-runner rrdtool snmp snmpd whois unzip traceroute)
@@ -145,7 +181,7 @@ fi
 # === 📦 Clone LibreNMS ===
 banner "Cloning LibreNMS Code"
 repo_dir=/opt/librenms
-if [[ -d "$repo_dir" ]]; then
+if [[ -d "$repo_dir/.git" ]]; then
   skip "$repo_dir exists, skipping clone"
 else
   git clone https://github.com/librenms/librenms.git "$repo_dir"
@@ -154,8 +190,8 @@ fi
 
 chown -R librenms:librenms /opt/librenms
 chmod 771 /opt/librenms
-setfacl -d -m g::rwx /opt/librenms/{rrd,logs,bootstrap/cache,storage} || true
-setfacl -R -m g::rwx /opt/librenms/{rrd,logs,bootstrap/cache,storage} || true
+setfacl -d -m g::rwx /opt/librenms/{rrd,logs,bootstrap/cache,storage}
+setfacl -R -m g::rwx /opt/librenms/{rrd,logs,bootstrap/cache,storage}
 success "Permissions set on /opt/librenms"
 
 # verify html directory
@@ -166,73 +202,63 @@ fi
 
 # === 💾 PHP Composer Dependencies ===
 banner "Installing PHP Dependencies"
-su -s /bin/bash librenms -c '/opt/librenms/scripts/composer_wrapper.php install --no-dev || true'
+echo "If this fails behind a proxy, install composer manually. See the LibreNMS install page."
+su - librenms -s /bin/bash -c 'cd /opt/librenms && ./scripts/composer_wrapper.php install --no-dev'
 success "PHP dependencies installed"
 
 # === 🛢️ MariaDB Setup ===
 banner "Configuring MariaDB"
-if ! mysql -uroot -e "USE librenms;" &>/dev/null; then
-  mysql -uroot <<MYSQL
-CREATE DATABASE librenms CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'librenms'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
+# MariaDB 11.x on 26.04 uses [mariadbd] (there is no [mysqld] section in 50-server.cnf).
+# A drop-in file works on 24.04 and 26.04 and is safe to re-run.
+cat > /etc/mysql/mariadb.conf.d/99-librenms.cnf <<'EOF'
+[mariadbd]
+innodb_file_per_table=1
+lower_case_table_names=0
+EOF
+chmod 644 /etc/mysql/mariadb.conf.d/99-librenms.cnf
+systemctl enable mariadb
+systemctl restart mariadb
+
+# escape \ and ' so any password is safe inside the SQL string
+DB_PASSWORD_SQL="${DB_PASSWORD//\\/\\\\}"
+DB_PASSWORD_SQL="${DB_PASSWORD_SQL//\'/\\\'}"
+mysql -uroot <<MYSQL
+CREATE DATABASE IF NOT EXISTS librenms CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'librenms'@'localhost' IDENTIFIED BY '${DB_PASSWORD_SQL}';
+ALTER USER 'librenms'@'localhost' IDENTIFIED BY '${DB_PASSWORD_SQL}';
 GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost';
 FLUSH PRIVILEGES;
 MYSQL
-  success "Database & user created"
-else
-  skip "Database 'librenms' exists, skipping"
-fi
-
-# apply innodb settings
-sed -i '/\[mysqld\]/a innodb_file_per_table=1' /etc/mysql/mariadb.conf.d/50-server.cnf
-sed -i '/\[mysqld\]/a lower_case_table_names=0'   /etc/mysql/mariadb.conf.d/50-server.cnf
-systemctl enable mariadb
-systemctl daemon-reload
-systemctl restart mariadb
-success "MariaDB configured"
+success "MariaDB configured, database & user ready"
 
 # === 🐘 PHP-FPM Pool Configuration ===
 banner "Configuring PHP-FPM Pool"
 
-# 1) Remove any stale LibreNMS socket
-rm -f /run/php-fpm-librenms.sock || true
-
-# 2) Ensure the standard PHP socket dir exists and is owned by librenms
-mkdir -p /run/php
-chown librenms:librenms /run/php
+# socket path used by the pool and by Nginx (same as the LibreNMS install guide)
+PHP_SOCKET="/run/php-fpm-librenms.sock"
 
 conf_dir="/etc/php/$PHP_VER/fpm/pool.d"
 lib_conf="$conf_dir/librenms.conf"
 
-if [[ ! -f "$lib_conf" ]]; then
-  cp "$conf_dir/www.conf" "$lib_conf"
-  # 3) Point to a unique socket name under /run/php/
-  sed -i \
-    -e 's/\[www\]/[librenms]/' \
-    -e 's/user = www-data/user = librenms/' \
-    -e 's/group = www-data/group = librenms/' \
-    -e 's|listen = .*|listen = /run/php/php'"${PHP_VER//./}"'-fpm-librenms.sock|' \
-    "$lib_conf"
-  success "PHP-FPM pool created"
-else
-  skip "PHP-FPM pool exists"
-fi
+# 1) Always rebuild the pool from www.conf so it matches $PHP_SOCKET
+cp "$conf_dir/www.conf" "$lib_conf"
+sed -i \
+  -e 's/^\[www\]/[librenms]/' \
+  -e 's/^user = www-data/user = librenms/' \
+  -e 's/^group = www-data/group = librenms/' \
+  -e "s|^listen = .*|listen = ${PHP_SOCKET}|" \
+  "$lib_conf"
+success "PHP-FPM pool created"
 
-# 4) Apply timezone into PHP INI if missing
+# 2) Apply timezone into PHP INI
 for ini in fpm/php.ini cli/php.ini; do
-  file="/etc/php/$PHP_VER/$ini"
-  grep -q "date.timezone = $TZ" "$file" || \
-    sed -i "/;date.timezone =/a date.timezone = $TZ" "$file"
+  sed -i "s|^;\?date.timezone =.*|date.timezone = $TZ|" "/etc/php/$PHP_VER/$ini"
 done
 
-# 5) Enable & restart the service
+# 3) Enable & restart the service
 systemctl enable php${PHP_VER}-fpm
-systemctl daemon-reload
 systemctl restart php${PHP_VER}-fpm
-success "PHP-FPM restarted and running on socket: /run/php/php${PHP_VER//./}-fpm-librenms.sock"
-
-# define the socket path for Nginx
-PHP_SOCKET="/run/php/php${PHP_VER//./}-fpm-librenms.sock"
+success "PHP-FPM restarted and running on socket: ${PHP_SOCKET}"
 
 # === 🌐 NGINX Config ===
 banner "Configuring NGINX & SSL"
@@ -263,30 +289,41 @@ server {
     ssl_certificate_key $cert_key;
     root /opt/librenms/html;
     index index.php;
+
+    charset utf-8;
+    gzip on;
+    gzip_types text/css application/javascript text/javascript application/x-javascript image/svg+xml text/plain text/xsd text/xsl text/xml image/x-icon;
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
-    location ~ \.php\$ {
+    location ~ [^/]\.php(/|\$) {
         fastcgi_pass unix:${PHP_SOCKET};
+        fastcgi_split_path_info ^(.+\.php)(/.+)\$;
         include fastcgi.conf;
     }
-    location ~ /\.ht { deny all; }
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
 }
 EOF
 
 ln -sf /etc/nginx/sites-available/librenms.conf /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
-systemctl daemon-reload
-nginx -t && systemctl enable nginx && systemctl reload nginx
+nginx -t
+systemctl enable nginx
+systemctl restart nginx
 success "NGINX configured"
 
 # === 📟 SNMP Setup ===
 banner "Configuring SNMP"
 cp /opt/librenms/snmpd.conf.example /etc/snmp/snmpd.conf
-sed -i "s/RANDOMSTRINGGOESHERE/$SNMP_COMMUNITY/" /etc/snmp/snmpd.conf
-curl -s -o /usr/bin/distro https://raw.githubusercontent.com/librenms/librenms-agent/master/snmp/distro
+# escape characters that are special in a sed replacement (\ & /)
+SNMP_COMMUNITY_SED="$(printf '%s' "$SNMP_COMMUNITY" | sed 's/[\\&/]/\\&/g')"
+sed -i "s/RANDOMSTRINGGOESHERE/$SNMP_COMMUNITY_SED/g" /etc/snmp/snmpd.conf
+curl -fsSL -o /usr/bin/distro https://raw.githubusercontent.com/librenms/librenms-agent/master/snmp/distro
 chmod +x /usr/bin/distro
-systemctl enable --now snmpd
+systemctl enable snmpd
+systemctl restart snmpd
 success "SNMP ready"
 
 # === 🕓 CRON, LOGROTATE and Scheduler ===
@@ -294,36 +331,34 @@ banner "CRON, LOGROTATE and Scheduler"
 cp /opt/librenms/dist/librenms.cron     /etc/cron.d/librenms
 cp /opt/librenms/misc/librenms.logrotate /etc/logrotate.d/librenms
 cp /opt/librenms/dist/librenms-scheduler.service /opt/librenms/dist/librenms-scheduler.timer /etc/systemd/system/
-sudo systemctl enable librenms-scheduler.timer
 systemctl daemon-reload
-sudo systemctl start librenms-scheduler.timer
+systemctl enable librenms-scheduler.timer
+systemctl start librenms-scheduler.timer
 success "Copied cron and logrotate configs and enabled the scheduler"
 
 # === 📝 Update .env file with APP_URL & SESSION_SECURE_COOKIE ===
 banner "Updating .env file"
 ENV_FILE=/opt/librenms/.env
+touch "$ENV_FILE"
 
-# 1) Uncomment the placeholder and set APP_URL
-#    (if there’s a “#APP_URL=” line, replace it; otherwise append)
-if grep -q '^#APP_URL=' "$ENV_FILE"; then
-  sed -i "s|^#APP_URL=.*|APP_URL=https://${LIBRENMS_DOMAIN}|" "$ENV_FILE"
-else
-  echo -e "\nAPP_URL=https://${LIBRENMS_DOMAIN}" >> "$ENV_FILE"
-fi
-
-# 2) Ensure SESSION_SECURE_COOKIE=true is present (replace or append)
-if grep -q '^SESSION_SECURE_COOKIE=' "$ENV_FILE"; then
-  sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" "$ENV_FILE"
-else
-  echo "SESSION_SECURE_COOKIE=true" >> "$ENV_FILE"
-fi
+# Replace the key if present (commented out or not), otherwise append it,
+# so re-runs do not add duplicate lines
+set_env() {
+  if grep -qE "^#?[[:space:]]*${1}=" "$ENV_FILE"; then
+    sed -i -E "s|^#?[[:space:]]*${1}=.*|${1}=${2}|" "$ENV_FILE"
+  else
+    echo "${1}=${2}" >> "$ENV_FILE"
+  fi
+}
+set_env APP_URL "https://${LIBRENMS_DOMAIN}"
+set_env SESSION_SECURE_COOKIE true
+chown librenms:librenms "$ENV_FILE"
 
 success ".env file updated with APP_URL and SESSION_SECURE_COOKIE"
 
 # === 🔁 Enable & Restart Services ===
 banner "Enabling & Restarting Services"
 systemctl enable mariadb php${PHP_VER}-fpm nginx snmpd
-systemctl daemon-reload
 systemctl restart mariadb php${PHP_VER}-fpm nginx snmpd
 success "All services up"
 
@@ -332,15 +367,16 @@ banner "🔗 Linking LibreNMS CLI (lnms)"
 
 # Fix lnms symlink only if missing or wrong
 if [[ ! -L /usr/local/bin/lnms || "$(readlink -f /usr/local/bin/lnms)" != "/opt/librenms/lnms" ]]; then
-  sudo ln -sf /opt/librenms/lnms /usr/local/bin/lnms
-  sudo chmod +x /opt/librenms/lnms
+  ln -sf /opt/librenms/lnms /usr/local/bin/lnms
+  chmod +x /opt/librenms/lnms
   echo "🔗 lnms symlink created/updated."
 else
   echo "✅ lnms symlink already correct."
 fi
 
 # Always copy bash completion
-sudo cp /opt/librenms/misc/lnms-completion.bash /etc/bash_completion.d/
+mkdir -p /etc/bash_completion.d
+cp /opt/librenms/misc/lnms-completion.bash /etc/bash_completion.d/
 echo "📋 Bash completion script installed."
 
 success "Binary links updated"
@@ -356,3 +392,4 @@ echo -e "\n🔧 To enable UFW for LibreNMS, you can run:"
 echo -e "  sudo ufw allow 80,443/tcp"
 echo -e "  sudo ufw reload"
 echo -e "\n🚀 Then finish the web-UI setup at the URL above."
+echo -e "   Afterwards run:  su - librenms -c './validate.php'"
